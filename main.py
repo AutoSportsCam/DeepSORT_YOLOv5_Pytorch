@@ -158,33 +158,33 @@ class VideoTracker(object):
             print('Done. Load video file ', self.args.input_path)
 
         # ************************* create output *************************
-        # if self.args.save_path:
-        #     os.makedirs(self.args.save_path, exist_ok=True)
-        #     # path of saved video and results
-        #     self.save_video_path = os.path.join(
-        #         self.args.save_path, "results.mp4")
+        if self.args.save_path:
+            os.makedirs(self.args.save_path, exist_ok=True)
+            # path of saved video and results
+            self.save_video_path = os.path.join(
+                self.args.save_path, "results.mp4")
 
         #     # create video writer
-        #     fourcc = cv2.VideoWriter_fourcc(*self.args.fourcc)
-        #     self.writer = cv2.VideoWriter(self.save_video_path, fourcc,
-        #                                   self.vdo.get(cv2.CAP_PROP_FPS), (self.im_width, self.im_height))
-        #     print('Done. Create output file ', self.save_video_path)
+            fourcc = cv2.VideoWriter_fourcc(*self.args.fourcc)
+            self.writer = cv2.VideoWriter(self.save_video_path, fourcc,
+                self.vdo.get(cv2.CAP_PROP_FPS), (self.im_width, self.im_height))
+            print('Done. Create output file ', self.save_video_path)
 
-        # if self.args.save_txt:
-        #     os.makedirs(self.args.save_txt, exist_ok=True)
+        if self.args.save_txt:
+            os.makedirs(self.args.save_txt, exist_ok=True)
 
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        # self.vdo.release()
-        # self.writer.release()
+        self.vdo.release()
+        self.writer.release()
         if exc_type:
             print(exc_type, exc_value, exc_traceback)
 
     def run(self):
         yolo_time, sort_time, avg_fps = [], [], []
         t_start = time.time()
-
+        predictresult=[]
         buffer = defaultdict(list)
         idx_frame = 0
         last_out = None
@@ -205,19 +205,13 @@ class VideoTracker(object):
             t1 = time.time()
             avg_fps.append(t1 - t0)
 
-            # post-processing ***************************************************************
-            # visualize bbox  ********************************
             if len(outputs) > 0:
-
+                
                 # add FPS information on output video
                 text_scale = max(1, img0.shape[1] // 1600)
                 cv2.putText(img0, 'frame: %d fps: %.2f ' % (idx_frame, len(avg_fps) / sum(avg_fps)),
                         (20, 20 + text_scale), cv2.FONT_HERSHEY_PLAIN, text_scale, (0, 0, 255), thickness=2)
             # display on window ******************************
-
-            # Save results to buffer
-
-            if len(outputs) > 0:
                 for output in outputs:
                     idx = int(output[-1])
                     # Append x1, y1, x2, y2 to the buffer
@@ -230,17 +224,33 @@ class VideoTracker(object):
                         for i in res:
                             print(i, end=" ")
                             clist.append(i)
-                        presult = predict(clist[0:17])
+                        
                         print()
-                        cv2.putText(img0, 'Result: %s' % (presult[0][1]),
-                        (20, 100 + text_scale), cv2.FONT_HERSHEY_PLAIN, 4, (255,255, 255), thickness=5)
+                        presult = predict(clist[0:17])
+                        predictresult = presult
+                        
                             # Clear buffer after processingW
                 buffer.clear()
+                if predictresult:
+                    cv2.putText(img0, 'Result: %s' % (predictresult[0][1]),
+                        (20, 100 + text_scale), cv2.FONT_HERSHEY_PLAIN, 4, (255,255, 255), thickness=5)
             if self.args.display:
                 cv2.imshow("test", img0)
                 if cv2.waitKey(1) == ord('q'):  # q to quit
                     cv2.destroyAllWindows()
                     break
+
+
+
+            # save to video file *****************************
+            #if self.args.save_path:
+            #    self.writer.write(img0)
+
+            #if self.args.save_txt:
+                #with open(self.args.save_txt + str(idx_frame).zfill(4) + '.txt', 'a') as f:
+                    #for i in range(len(outputs)):
+                        #x1, y1, x2, y2, idx = outputs[i]
+                        #f.write('{}\t{}\t{}\t{}\t{}\n'.format(x1, y1, x2, y2, idx)) 
             idx_frame += 1
 
         print('Avg YOLO time (%.3fs), Sort time (%.3fs) per frame' % (sum(yolo_time) / len(yolo_time),
