@@ -6,6 +6,7 @@ from yolov5.utils.datasets import letterbox
 from utils_ds.parser import get_config
 from utils_ds.draw import draw_boxes
 from deep_sort import build_tracker
+from predict import *
 
 import argparse
 import os
@@ -206,6 +207,14 @@ class VideoTracker(object):
 
             # post-processing ***************************************************************
             # visualize bbox  ********************************
+            if len(outputs) > 0:
+
+                # add FPS information on output video
+                text_scale = max(1, img0.shape[1] // 1600)
+                cv2.putText(img0, 'frame: %d fps: %.2f ' % (idx_frame, len(avg_fps) / sum(avg_fps)),
+                        (20, 20 + text_scale), cv2.FONT_HERSHEY_PLAIN, text_scale, (0, 0, 255), thickness=2)
+            # display on window ******************************
+
             # Save results to buffer
 
             if len(outputs) > 0:
@@ -217,13 +226,21 @@ class VideoTracker(object):
                 if idx_frame % 2 == 0:
                     res = calcDe(buffer, idx_frame)
                     if len(res) > 0:
+                        clist = []
                         for i in res:
                             print(i, end=" ")
+                            clist.append(i)
+                        presult = predict(clist[0:17])
                         print()
-
-                # Clear buffer after processing
+                        cv2.putText(img0, 'Result: %s' % (presult[0][1]),
+                        (20, 100 + text_scale), cv2.FONT_HERSHEY_PLAIN, 4, (255,255, 255), thickness=5)
+                            # Clear buffer after processingW
                 buffer.clear()
-
+            if self.args.display:
+                cv2.imshow("test", img0)
+                if cv2.waitKey(1) == ord('q'):  # q to quit
+                    cv2.destroyAllWindows()
+                    break
             idx_frame += 1
 
         print('Avg YOLO time (%.3fs), Sort time (%.3fs) per frame' % (sum(yolo_time) / len(yolo_time),
